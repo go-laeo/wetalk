@@ -2,8 +2,15 @@
 import { createAuthStore } from './stores/auth';
 import { UserCircleIcon, LockOpenIcon, CircleStackIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
+import { createMetaStore } from './stores/meta';
+import { onBeforeMount } from 'vue';
 
 const auth = createAuthStore()
+const meta = createMetaStore()
+onBeforeMount(async () => {
+    await meta.update()
+    document.title = meta.SiteName
+})
 </script>
 
 <template>
@@ -11,7 +18,7 @@ const auth = createAuthStore()
         <div class=" w-full xl:max-w-screen-xl min-h-screen mx-auto flex flex-col">
             <nav class=" flex flex-row items-center p-5 gap-4 md:gap-12 text-slate-900">
                 <router-link :to="{name: 'Home'}" class=" font-semibold font-serif text-2xl select-none text-slate-900">
-                    WETALK
+                    {{ meta.SiteName }}
                 </router-link>
                 <div class=" flex-1"></div>
                 <template v-if="auth.token">

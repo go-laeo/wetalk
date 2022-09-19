@@ -16,6 +16,7 @@ import (
 	"github.com/go-laeo/wetalk/internal/author"
 	"github.com/go-laeo/wetalk/internal/config"
 	"github.com/go-laeo/wetalk/internal/force"
+	"github.com/go-laeo/wetalk/internal/meta"
 	"github.com/go-laeo/wetalk/internal/reader"
 	"github.com/go-laeo/wetalk/internal/search"
 	_ "github.com/go-sql-driver/mysql"
@@ -66,6 +67,7 @@ func main() {
 	sm.Route("/api/v1/posts").Get(search.HTTPListPost())
 	sm.Route("/api/v1/posts/:id").Get(search.HTTPQueryPost())
 	sm.Route("/api/v1/posts/:id/comments").Get(search.HTTPQueryCommentList())
+	sm.Route("/api/v1/meta").Get(meta.HTTPQueryMeta())
 
 	sm.Route("/*static").Any(pi.FileServer(pi.Sub(http.FS(stubs), "web/dist"), "index.html"))
 

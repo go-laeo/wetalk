@@ -19,17 +19,10 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// EdgeMembers holds the string denoting the members edge name in mutations.
-	EdgeMembers = "members"
 	// EdgePosts holds the string denoting the posts edge name in mutations.
 	EdgePosts = "posts"
 	// Table holds the table name of the group in the database.
 	Table = "groups"
-	// MembersTable is the table that holds the members relation/edge. The primary key declared below.
-	MembersTable = "group_members"
-	// MembersInverseTable is the table name for the User entity.
-	// It exists in this package in order to avoid circular dependency with the "user" package.
-	MembersInverseTable = "users"
 	// PostsTable is the table that holds the posts relation/edge.
 	PostsTable = "posts"
 	// PostsInverseTable is the table name for the Post entity.
@@ -47,12 +40,6 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
-
-var (
-	// MembersPrimaryKey and MembersColumn2 are the table columns denoting the
-	// primary key for the members relation (M2M).
-	MembersPrimaryKey = []string{"group_id", "user_id"}
-)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {

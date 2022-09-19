@@ -40,21 +40,27 @@ func CreateAccount(ctx context.Context, data *AccountData) (err error) {
 		return err
 	}
 
-	// cnt, err := tx.User.Query().Count(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// if cnt == 0 {
-	// 	// It's the first account, we should create it as site owner.
-	// }
-
-	err = tx.User.Create().
+	u, err := tx.User.Create().
 		SetAccount(data.Account).SetName(data.Name).
 		SetPassword(string(buf)).
-		Exec(ctx)
+		Save(ctx)
 	if err != nil {
 		return err
+	}
+
+	cnt, err := tx.User.Query().Count(ctx)
+	if err != nil {
+		return err
+	}
+	if cnt == 1 {
+		err = tx.Coin.Create().SetDeal("创世空投").SetAmount(1000000).SetBalance(1000000).SetOwner(u).Exec(ctx)
+		if err != nil {
+			return err
+		}
+		err = u.Update().SetCoin(1000000).Exec(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit()

@@ -28,6 +28,8 @@ type User struct {
 	AvatarURL string `json:"avatar_url,omitempty"`
 	// Intro holds the value of the "intro" field.
 	Intro string `json:"intro,omitempty"`
+	// Coin holds the value of the "coin" field.
+	Coin int64 `json:"coin,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -41,10 +43,10 @@ type User struct {
 type UserEdges struct {
 	// Posts holds the value of the posts edge.
 	Posts []*Post `json:"posts,omitempty"`
-	// Groups holds the value of the groups edge.
-	Groups []*Group `json:"groups,omitempty"`
 	// FavoritePosts holds the value of the favorite_posts edge.
 	FavoritePosts []*Post `json:"favorite_posts,omitempty"`
+	// Coins holds the value of the coins edge.
+	Coins []*Coin `json:"coins,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [3]bool
@@ -59,22 +61,22 @@ func (e UserEdges) PostsOrErr() ([]*Post, error) {
 	return nil, &NotLoadedError{edge: "posts"}
 }
 
-// GroupsOrErr returns the Groups value or an error if the edge
-// was not loaded in eager-loading.
-func (e UserEdges) GroupsOrErr() ([]*Group, error) {
-	if e.loadedTypes[1] {
-		return e.Groups, nil
-	}
-	return nil, &NotLoadedError{edge: "groups"}
-}
-
 // FavoritePostsOrErr returns the FavoritePosts value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) FavoritePostsOrErr() ([]*Post, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[1] {
 		return e.FavoritePosts, nil
 	}
 	return nil, &NotLoadedError{edge: "favorite_posts"}
+}
+
+// CoinsOrErr returns the Coins value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) CoinsOrErr() ([]*Coin, error) {
+	if e.loadedTypes[2] {
+		return e.Coins, nil
+	}
+	return nil, &NotLoadedError{edge: "coins"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -82,7 +84,7 @@ func (*User) scanValues(columns []string) ([]interface{}, error) {
 	values := make([]interface{}, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID:
+		case user.FieldID, user.FieldCoin:
 			values[i] = new(sql.NullInt64)
 		case user.FieldName, user.FieldAccount, user.FieldPassword, user.FieldSalt, user.FieldAvatarURL, user.FieldIntro:
 			values[i] = new(sql.NullString)
@@ -145,6 +147,12 @@ func (u *User) assignValues(columns []string, values []interface{}) error {
 			} else if value.Valid {
 				u.Intro = value.String
 			}
+		case user.FieldCoin:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field coin", values[i])
+			} else if value.Valid {
+				u.Coin = value.Int64
+			}
 		case user.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -167,14 +175,14 @@ func (u *User) QueryPosts() *PostQuery {
 	return (&UserClient{config: u.config}).QueryPosts(u)
 }
 
-// QueryGroups queries the "groups" edge of the User entity.
-func (u *User) QueryGroups() *GroupQuery {
-	return (&UserClient{config: u.config}).QueryGroups(u)
-}
-
 // QueryFavoritePosts queries the "favorite_posts" edge of the User entity.
 func (u *User) QueryFavoritePosts() *PostQuery {
 	return (&UserClient{config: u.config}).QueryFavoritePosts(u)
+}
+
+// QueryCoins queries the "coins" edge of the User entity.
+func (u *User) QueryCoins() *CoinQuery {
+	return (&UserClient{config: u.config}).QueryCoins(u)
 }
 
 // Update returns a builder for updating this User.
@@ -215,6 +223,9 @@ func (u *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("intro=")
 	builder.WriteString(u.Intro)
+	builder.WriteString(", ")
+	builder.WriteString("coin=")
+	builder.WriteString(fmt.Sprintf("%v", u.Coin))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(u.CreatedAt.Format(time.ANSIC))

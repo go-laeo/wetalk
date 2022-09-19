@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { HandThumbUpIcon, HandThumbDownIcon, HeartIcon, ChatBubbleLeftEllipsisIcon, AtSymbolIcon, MusicalNoteIcon } from '@heroicons/vue/24/outline';
-import { HandThumbUpIcon as HandThumbUpIconSolid, HandThumbDownIcon as HandThumbDownIconSolid, HeartIcon as HeartIconSolid } from '@heroicons/vue/24/solid';
+import { HeartIcon, ChatBubbleLeftEllipsisIcon, HashtagIcon, MusicalNoteIcon } from '@heroicons/vue/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/vue/24/solid';
 import { onMounted, ref } from 'vue';
 import { createSearchStore, Post } from '../stores/search';
 import dayjs from 'dayjs';
@@ -63,7 +63,7 @@ onMounted(refresh)
                     <div class=" text-slate-700 select-none text-xs">{{ dayjs(it.CreatedAt).fromNow() }}</div>
                     <div v-if="it.Group"
                         class=" bg-gray-200 text-xs text-slate-900 rounded-3xl p-1 px-4 select-none flex flex-row items-center">
-                        <AtSymbolIcon class=" w-4 h-4" />
+                        <HashtagIcon class=" w-4 h-4" />
                         {{ it.Group.Name }}
                     </div>
                 </div>

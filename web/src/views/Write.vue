@@ -14,6 +14,8 @@ import { useRouter } from 'vue-router';
 const author = createAuthorStore()
 
 const defaultGroup = { ID: 0, Name: '不发送到任何圈子', Intro: '' }
+const groups = ref<Group[]>([])
+onMounted(async () => groups.value = await author.getGroupList())
 
 const state = reactive<{
     content: string
@@ -79,8 +81,7 @@ const submit = async () => {
                             </span>
                         </li>
                     </ListboxOption>
-                    <ListboxOption v-slot="{ active, selected }" v-for="it in profile?.GroupSet" :key="it.ID"
-                        :value="it">
+                    <ListboxOption v-slot="{ active, selected }" v-for="it in groups" :key="it.ID" :value="it">
                         <li :class="[
                           active ? 'bg-blue-100 text-blue-900' : 'text-gray-900',
                           'relative cursor-default select-none py-2 pl-10 pr-4',

@@ -53,6 +53,18 @@ const router = createRouter({
                         return next()
                     }
                 },
+                {
+                    name: 'ForceMarket',
+                    path: '/force-market',
+                    component: () => import('../views/ForceMarket.vue'),
+                    beforeEnter(to, from, next) {
+                        const auth = createAuthStore()
+                        if (!auth.token) {
+                            return next({ name: 'Login' })
+                        }
+                        return next()
+                    }
+                },
             ]
         },
     ]

@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"math"
 
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/go-laeo/wetalk/ent/group"
+	"github.com/go-laeo/wetalk/ent/coin"
 	"github.com/go-laeo/wetalk/ent/post"
 	"github.com/go-laeo/wetalk/ent/predicate"
 	"github.com/go-laeo/wetalk/ent/user"
@@ -27,8 +28,9 @@ type UserQuery struct {
 	fields            []string
 	predicates        []predicate.User
 	withPosts         *PostQuery
-	withGroups        *GroupQuery
 	withFavoritePosts *PostQuery
+	withCoins         *CoinQuery
+	modifiers         []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -87,28 +89,6 @@ func (uq *UserQuery) QueryPosts() *PostQuery {
 	return query
 }
 
-// QueryGroups chains the current query on the "groups" edge.
-func (uq *UserQuery) QueryGroups() *GroupQuery {
-	query := &GroupQuery{config: uq.config}
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := uq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := uq.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(group.Table, group.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, true, user.GroupsTable, user.GroupsPrimaryKey...),
-		)
-		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
 // QueryFavoritePosts chains the current query on the "favorite_posts" edge.
 func (uq *UserQuery) QueryFavoritePosts() *PostQuery {
 	query := &PostQuery{config: uq.config}
@@ -124,6 +104,28 @@ func (uq *UserQuery) QueryFavoritePosts() *PostQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(post.Table, post.FieldID),
 			sqlgraph.Edge(sqlgraph.M2M, false, user.FavoritePostsTable, user.FavoritePostsPrimaryKey...),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCoins chains the current query on the "coins" edge.
+func (uq *UserQuery) QueryCoins() *CoinQuery {
+	query := &CoinQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(coin.Table, coin.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CoinsTable, user.CoinsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -313,8 +315,8 @@ func (uq *UserQuery) Clone() *UserQuery {
 		order:             append([]OrderFunc{}, uq.order...),
 		predicates:        append([]predicate.User{}, uq.predicates...),
 		withPosts:         uq.withPosts.Clone(),
-		withGroups:        uq.withGroups.Clone(),
 		withFavoritePosts: uq.withFavoritePosts.Clone(),
+		withCoins:         uq.withCoins.Clone(),
 		// clone intermediate query.
 		sql:    uq.sql.Clone(),
 		path:   uq.path,
@@ -333,17 +335,6 @@ func (uq *UserQuery) WithPosts(opts ...func(*PostQuery)) *UserQuery {
 	return uq
 }
 
-// WithGroups tells the query-builder to eager-load the nodes that are connected to
-// the "groups" edge. The optional arguments are used to configure the query builder of the edge.
-func (uq *UserQuery) WithGroups(opts ...func(*GroupQuery)) *UserQuery {
-	query := &GroupQuery{config: uq.config}
-	for _, opt := range opts {
-		opt(query)
-	}
-	uq.withGroups = query
-	return uq
-}
-
 // WithFavoritePosts tells the query-builder to eager-load the nodes that are connected to
 // the "favorite_posts" edge. The optional arguments are used to configure the query builder of the edge.
 func (uq *UserQuery) WithFavoritePosts(opts ...func(*PostQuery)) *UserQuery {
@@ -352,6 +343,17 @@ func (uq *UserQuery) WithFavoritePosts(opts ...func(*PostQuery)) *UserQuery {
 		opt(query)
 	}
 	uq.withFavoritePosts = query
+	return uq
+}
+
+// WithCoins tells the query-builder to eager-load the nodes that are connected to
+// the "coins" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithCoins(opts ...func(*CoinQuery)) *UserQuery {
+	query := &CoinQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withCoins = query
 	return uq
 }
 
@@ -425,8 +427,8 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		_spec       = uq.querySpec()
 		loadedTypes = [3]bool{
 			uq.withPosts != nil,
-			uq.withGroups != nil,
 			uq.withFavoritePosts != nil,
+			uq.withCoins != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
@@ -437,6 +439,9 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
+	}
+	if len(uq.modifiers) > 0 {
+		_spec.Modifiers = uq.modifiers
 	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
@@ -454,17 +459,17 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
-	if query := uq.withGroups; query != nil {
-		if err := uq.loadGroups(ctx, query, nodes,
-			func(n *User) { n.Edges.Groups = []*Group{} },
-			func(n *User, e *Group) { n.Edges.Groups = append(n.Edges.Groups, e) }); err != nil {
-			return nil, err
-		}
-	}
 	if query := uq.withFavoritePosts; query != nil {
 		if err := uq.loadFavoritePosts(ctx, query, nodes,
 			func(n *User) { n.Edges.FavoritePosts = []*Post{} },
 			func(n *User, e *Post) { n.Edges.FavoritePosts = append(n.Edges.FavoritePosts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := uq.withCoins; query != nil {
+		if err := uq.loadCoins(ctx, query, nodes,
+			func(n *User) { n.Edges.Coins = []*Coin{} },
+			func(n *User, e *Coin) { n.Edges.Coins = append(n.Edges.Coins, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -499,64 +504,6 @@ func (uq *UserQuery) loadPosts(ctx context.Context, query *PostQuery, nodes []*U
 			return fmt.Errorf(`unexpected foreign-key "user_posts" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
-	}
-	return nil
-}
-func (uq *UserQuery) loadGroups(ctx context.Context, query *GroupQuery, nodes []*User, init func(*User), assign func(*User, *Group)) error {
-	edgeIDs := make([]driver.Value, len(nodes))
-	byID := make(map[int]*User)
-	nids := make(map[int]map[*User]struct{})
-	for i, node := range nodes {
-		edgeIDs[i] = node.ID
-		byID[node.ID] = node
-		if init != nil {
-			init(node)
-		}
-	}
-	query.Where(func(s *sql.Selector) {
-		joinT := sql.Table(user.GroupsTable)
-		s.Join(joinT).On(s.C(group.FieldID), joinT.C(user.GroupsPrimaryKey[0]))
-		s.Where(sql.InValues(joinT.C(user.GroupsPrimaryKey[1]), edgeIDs...))
-		columns := s.SelectedColumns()
-		s.Select(joinT.C(user.GroupsPrimaryKey[1]))
-		s.AppendSelect(columns...)
-		s.SetDistinct(false)
-	})
-	if err := query.prepareQuery(ctx); err != nil {
-		return err
-	}
-	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-		assign := spec.Assign
-		values := spec.ScanValues
-		spec.ScanValues = func(columns []string) ([]interface{}, error) {
-			values, err := values(columns[1:])
-			if err != nil {
-				return nil, err
-			}
-			return append([]interface{}{new(sql.NullInt64)}, values...), nil
-		}
-		spec.Assign = func(columns []string, values []interface{}) error {
-			outValue := int(values[0].(*sql.NullInt64).Int64)
-			inValue := int(values[1].(*sql.NullInt64).Int64)
-			if nids[inValue] == nil {
-				nids[inValue] = map[*User]struct{}{byID[outValue]: struct{}{}}
-				return assign(columns[1:], values[1:])
-			}
-			nids[inValue][byID[outValue]] = struct{}{}
-			return nil
-		}
-	})
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "groups" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
-		}
 	}
 	return nil
 }
@@ -618,9 +565,43 @@ func (uq *UserQuery) loadFavoritePosts(ctx context.Context, query *PostQuery, no
 	}
 	return nil
 }
+func (uq *UserQuery) loadCoins(ctx context.Context, query *CoinQuery, nodes []*User, init func(*User), assign func(*User, *Coin)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.Coin(func(s *sql.Selector) {
+		s.Where(sql.InValues(user.CoinsColumn, fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_coins
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_coins" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "user_coins" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (uq *UserQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := uq.querySpec()
+	if len(uq.modifiers) > 0 {
+		_spec.Modifiers = uq.modifiers
+	}
 	_spec.Node.Columns = uq.fields
 	if len(uq.fields) > 0 {
 		_spec.Unique = uq.unique != nil && *uq.unique
@@ -699,6 +680,9 @@ func (uq *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if uq.unique != nil && *uq.unique {
 		selector.Distinct()
 	}
+	for _, m := range uq.modifiers {
+		m(selector)
+	}
 	for _, p := range uq.predicates {
 		p(selector)
 	}
@@ -714,6 +698,32 @@ func (uq *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (uq *UserQuery) ForUpdate(opts ...sql.LockOption) *UserQuery {
+	if uq.driver.Dialect() == dialect.Postgres {
+		uq.Unique(false)
+	}
+	uq.modifiers = append(uq.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return uq
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (uq *UserQuery) ForShare(opts ...sql.LockOption) *UserQuery {
+	if uq.driver.Dialect() == dialect.Postgres {
+		uq.Unique(false)
+	}
+	uq.modifiers = append(uq.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return uq
 }
 
 // UserGroupBy is the group-by builder for User entities.

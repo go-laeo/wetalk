@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -22,8 +23,9 @@ func (User) Fields() []ent.Field {
 		field.String("salt").Sensitive().Optional(),
 		field.String("avatar_url").Optional(),
 		field.String("intro").Optional(),
-		field.Time("created_at").Default(time.Now),
-		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
+		field.Int64("coin").Default(0),
+		field.Time("created_at").Default(time.Now).Annotations(entsql.Annotation{Default: "CURRENT_TIMESTAMP"}),
+		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).Annotations(entsql.Annotation{Default: "CURRENT_TIMESTAMP"}),
 	}
 }
 
@@ -31,7 +33,7 @@ func (User) Fields() []ent.Field {
 func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("posts", Post.Type),
-		edge.From("groups", Group.Type).Ref("members"),
 		edge.To("favorite_posts", Post.Type),
+		edge.To("coins", Coin.Type),
 	}
 }

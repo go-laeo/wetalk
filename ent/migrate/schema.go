@@ -8,12 +8,36 @@ import (
 )
 
 var (
+	// CoinsColumns holds the columns for the "coins" table.
+	CoinsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "deal", Type: field.TypeString},
+		{Name: "amount", Type: field.TypeInt64},
+		{Name: "balance", Type: field.TypeInt64},
+		{Name: "created_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
+		{Name: "updated_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
+		{Name: "user_coins", Type: field.TypeInt},
+	}
+	// CoinsTable holds the schema information for the "coins" table.
+	CoinsTable = &schema.Table{
+		Name:       "coins",
+		Columns:    CoinsColumns,
+		PrimaryKey: []*schema.Column{CoinsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "coins_users_coins",
+				Columns:    []*schema.Column{CoinsColumns[6]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// CommentsColumns holds the columns for the "comments" table.
 	CommentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "content", Type: field.TypeString, Size: 2147483647},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
+		{Name: "updated_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
 		{Name: "comment_author", Type: field.TypeInt},
 		{Name: "comment_to", Type: field.TypeInt, Nullable: true},
 		{Name: "post_comments", Type: field.TypeInt},
@@ -49,8 +73,8 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString, Unique: true},
 		{Name: "intro", Type: field.TypeString, Size: 2147483647},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
+		{Name: "updated_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
 	}
 	// GroupsTable holds the schema information for the "groups" table.
 	GroupsTable = &schema.Table{
@@ -62,8 +86,8 @@ var (
 	PostsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "content", Type: field.TypeString, Size: 2147483647},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
+		{Name: "updated_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
 		{Name: "group_posts", Type: field.TypeInt, Nullable: true},
 		{Name: "user_posts", Type: field.TypeInt},
 	}
@@ -96,39 +120,15 @@ var (
 		{Name: "salt", Type: field.TypeString, Nullable: true},
 		{Name: "avatar_url", Type: field.TypeString, Nullable: true},
 		{Name: "intro", Type: field.TypeString, Nullable: true},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "coin", Type: field.TypeInt64, Default: 0},
+		{Name: "created_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
+		{Name: "updated_at", Type: field.TypeTime, Default: "CURRENT_TIMESTAMP"},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
 		Name:       "users",
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
-	}
-	// GroupMembersColumns holds the columns for the "group_members" table.
-	GroupMembersColumns = []*schema.Column{
-		{Name: "group_id", Type: field.TypeInt},
-		{Name: "user_id", Type: field.TypeInt},
-	}
-	// GroupMembersTable holds the schema information for the "group_members" table.
-	GroupMembersTable = &schema.Table{
-		Name:       "group_members",
-		Columns:    GroupMembersColumns,
-		PrimaryKey: []*schema.Column{GroupMembersColumns[0], GroupMembersColumns[1]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "group_members_group_id",
-				Columns:    []*schema.Column{GroupMembersColumns[0]},
-				RefColumns: []*schema.Column{GroupsColumns[0]},
-				OnDelete:   schema.Cascade,
-			},
-			{
-				Symbol:     "group_members_user_id",
-				Columns:    []*schema.Column{GroupMembersColumns[1]},
-				RefColumns: []*schema.Column{UsersColumns[0]},
-				OnDelete:   schema.Cascade,
-			},
-		},
 	}
 	// UserFavoritePostsColumns holds the columns for the "user_favorite_posts" table.
 	UserFavoritePostsColumns = []*schema.Column{
@@ -157,23 +157,22 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		CoinsTable,
 		CommentsTable,
 		GroupsTable,
 		PostsTable,
 		UsersTable,
-		GroupMembersTable,
 		UserFavoritePostsTable,
 	}
 )
 
 func init() {
+	CoinsTable.ForeignKeys[0].RefTable = UsersTable
 	CommentsTable.ForeignKeys[0].RefTable = UsersTable
 	CommentsTable.ForeignKeys[1].RefTable = UsersTable
 	CommentsTable.ForeignKeys[2].RefTable = PostsTable
 	PostsTable.ForeignKeys[0].RefTable = GroupsTable
 	PostsTable.ForeignKeys[1].RefTable = UsersTable
-	GroupMembersTable.ForeignKeys[0].RefTable = GroupsTable
-	GroupMembersTable.ForeignKeys[1].RefTable = UsersTable
 	UserFavoritePostsTable.ForeignKeys[0].RefTable = UsersTable
 	UserFavoritePostsTable.ForeignKeys[1].RefTable = PostsTable
 }

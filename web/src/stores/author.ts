@@ -6,7 +6,6 @@ export interface ProfileData {
     Name: string
     Account: string
     AvatarURL: string
-    GroupSet: Group[]
     Intro: string
 }
 

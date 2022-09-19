@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-laeo/wetalk/ent/migrate"
 
+	"github.com/go-laeo/wetalk/ent/coin"
 	"github.com/go-laeo/wetalk/ent/comment"
 	"github.com/go-laeo/wetalk/ent/group"
 	"github.com/go-laeo/wetalk/ent/post"
@@ -25,6 +26,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Coin is the client for interacting with the Coin builders.
+	Coin *CoinClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
 	// Group is the client for interacting with the Group builders.
@@ -46,6 +49,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Coin = NewCoinClient(c.config)
 	c.Comment = NewCommentClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.Post = NewPostClient(c.config)
@@ -83,6 +87,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:     ctx,
 		config:  cfg,
+		Coin:    NewCoinClient(cfg),
 		Comment: NewCommentClient(cfg),
 		Group:   NewGroupClient(cfg),
 		Post:    NewPostClient(cfg),
@@ -106,6 +111,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:     ctx,
 		config:  cfg,
+		Coin:    NewCoinClient(cfg),
 		Comment: NewCommentClient(cfg),
 		Group:   NewGroupClient(cfg),
 		Post:    NewPostClient(cfg),
@@ -116,7 +122,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Comment.
+//		Coin.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -138,10 +144,117 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Coin.Use(hooks...)
 	c.Comment.Use(hooks...)
 	c.Group.Use(hooks...)
 	c.Post.Use(hooks...)
 	c.User.Use(hooks...)
+}
+
+// CoinClient is a client for the Coin schema.
+type CoinClient struct {
+	config
+}
+
+// NewCoinClient returns a client for the Coin from the given config.
+func NewCoinClient(c config) *CoinClient {
+	return &CoinClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `coin.Hooks(f(g(h())))`.
+func (c *CoinClient) Use(hooks ...Hook) {
+	c.hooks.Coin = append(c.hooks.Coin, hooks...)
+}
+
+// Create returns a builder for creating a Coin entity.
+func (c *CoinClient) Create() *CoinCreate {
+	mutation := newCoinMutation(c.config, OpCreate)
+	return &CoinCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Coin entities.
+func (c *CoinClient) CreateBulk(builders ...*CoinCreate) *CoinCreateBulk {
+	return &CoinCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Coin.
+func (c *CoinClient) Update() *CoinUpdate {
+	mutation := newCoinMutation(c.config, OpUpdate)
+	return &CoinUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CoinClient) UpdateOne(co *Coin) *CoinUpdateOne {
+	mutation := newCoinMutation(c.config, OpUpdateOne, withCoin(co))
+	return &CoinUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CoinClient) UpdateOneID(id int) *CoinUpdateOne {
+	mutation := newCoinMutation(c.config, OpUpdateOne, withCoinID(id))
+	return &CoinUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Coin.
+func (c *CoinClient) Delete() *CoinDelete {
+	mutation := newCoinMutation(c.config, OpDelete)
+	return &CoinDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CoinClient) DeleteOne(co *Coin) *CoinDeleteOne {
+	return c.DeleteOneID(co.ID)
+}
+
+// DeleteOne returns a builder for deleting the given entity by its id.
+func (c *CoinClient) DeleteOneID(id int) *CoinDeleteOne {
+	builder := c.Delete().Where(coin.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CoinDeleteOne{builder}
+}
+
+// Query returns a query builder for Coin.
+func (c *CoinClient) Query() *CoinQuery {
+	return &CoinQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a Coin entity by its id.
+func (c *CoinClient) Get(ctx context.Context, id int) (*Coin, error) {
+	return c.Query().Where(coin.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CoinClient) GetX(ctx context.Context, id int) *Coin {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOwner queries the owner edge of a Coin.
+func (c *CoinClient) QueryOwner(co *Coin) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := co.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(coin.Table, coin.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, coin.OwnerTable, coin.OwnerColumn),
+		)
+		fromV = sqlgraph.Neighbors(co.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CoinClient) Hooks() []Hook {
+	return c.hooks.Coin
 }
 
 // CommentClient is a client for the Comment schema.
@@ -365,22 +478,6 @@ func (c *GroupClient) GetX(ctx context.Context, id int) *Group {
 		panic(err)
 	}
 	return obj
-}
-
-// QueryMembers queries the members edge of a Group.
-func (c *GroupClient) QueryMembers(gr *Group) *UserQuery {
-	query := &UserQuery{config: c.config}
-	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
-		id := gr.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(group.Table, group.FieldID, id),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, group.MembersTable, group.MembersPrimaryKey...),
-		)
-		fromV = sqlgraph.Neighbors(gr.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
 }
 
 // QueryPosts queries the posts edge of a Group.
@@ -659,22 +756,6 @@ func (c *UserClient) QueryPosts(u *User) *PostQuery {
 	return query
 }
 
-// QueryGroups queries the groups edge of a User.
-func (c *UserClient) QueryGroups(u *User) *GroupQuery {
-	query := &GroupQuery{config: c.config}
-	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
-		id := u.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(group.Table, group.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, true, user.GroupsTable, user.GroupsPrimaryKey...),
-		)
-		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // QueryFavoritePosts queries the favorite_posts edge of a User.
 func (c *UserClient) QueryFavoritePosts(u *User) *PostQuery {
 	query := &PostQuery{config: c.config}
@@ -684,6 +765,22 @@ func (c *UserClient) QueryFavoritePosts(u *User) *PostQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(post.Table, post.FieldID),
 			sqlgraph.Edge(sqlgraph.M2M, false, user.FavoritePostsTable, user.FavoritePostsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCoins queries the coins edge of a User.
+func (c *UserClient) QueryCoins(u *User) *CoinQuery {
+	query := &CoinQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(coin.Table, coin.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CoinsTable, user.CoinsColumn),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil

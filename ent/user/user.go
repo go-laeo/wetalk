@@ -23,16 +23,18 @@ const (
 	FieldAvatarURL = "avatar_url"
 	// FieldIntro holds the string denoting the intro field in the database.
 	FieldIntro = "intro"
+	// FieldCoin holds the string denoting the coin field in the database.
+	FieldCoin = "coin"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgePosts holds the string denoting the posts edge name in mutations.
 	EdgePosts = "posts"
-	// EdgeGroups holds the string denoting the groups edge name in mutations.
-	EdgeGroups = "groups"
 	// EdgeFavoritePosts holds the string denoting the favorite_posts edge name in mutations.
 	EdgeFavoritePosts = "favorite_posts"
+	// EdgeCoins holds the string denoting the coins edge name in mutations.
+	EdgeCoins = "coins"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// PostsTable is the table that holds the posts relation/edge.
@@ -42,16 +44,18 @@ const (
 	PostsInverseTable = "posts"
 	// PostsColumn is the table column denoting the posts relation/edge.
 	PostsColumn = "user_posts"
-	// GroupsTable is the table that holds the groups relation/edge. The primary key declared below.
-	GroupsTable = "group_members"
-	// GroupsInverseTable is the table name for the Group entity.
-	// It exists in this package in order to avoid circular dependency with the "group" package.
-	GroupsInverseTable = "groups"
 	// FavoritePostsTable is the table that holds the favorite_posts relation/edge. The primary key declared below.
 	FavoritePostsTable = "user_favorite_posts"
 	// FavoritePostsInverseTable is the table name for the Post entity.
 	// It exists in this package in order to avoid circular dependency with the "post" package.
 	FavoritePostsInverseTable = "posts"
+	// CoinsTable is the table that holds the coins relation/edge.
+	CoinsTable = "coins"
+	// CoinsInverseTable is the table name for the Coin entity.
+	// It exists in this package in order to avoid circular dependency with the "coin" package.
+	CoinsInverseTable = "coins"
+	// CoinsColumn is the table column denoting the coins relation/edge.
+	CoinsColumn = "user_coins"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -63,14 +67,12 @@ var Columns = []string{
 	FieldSalt,
 	FieldAvatarURL,
 	FieldIntro,
+	FieldCoin,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
 
 var (
-	// GroupsPrimaryKey and GroupsColumn2 are the table columns denoting the
-	// primary key for the groups relation (M2M).
-	GroupsPrimaryKey = []string{"group_id", "user_id"}
 	// FavoritePostsPrimaryKey and FavoritePostsColumn2 are the table columns denoting the
 	// primary key for the favorite_posts relation (M2M).
 	FavoritePostsPrimaryKey = []string{"user_id", "post_id"}
@@ -87,6 +89,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultCoin holds the default value on creation for the "coin" field.
+	DefaultCoin int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.

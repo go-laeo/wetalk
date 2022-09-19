@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-laeo/wetalk/ent/coin"
 	"github.com/go-laeo/wetalk/ent/comment"
 	"github.com/go-laeo/wetalk/ent/group"
 	"github.com/go-laeo/wetalk/ent/post"
@@ -27,11 +28,677 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeCoin    = "Coin"
 	TypeComment = "Comment"
 	TypeGroup   = "Group"
 	TypePost    = "Post"
 	TypeUser    = "User"
 )
+
+// CoinMutation represents an operation that mutates the Coin nodes in the graph.
+type CoinMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	deal          *string
+	amount        *int64
+	addamount     *int64
+	balance       *int64
+	addbalance    *int64
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	owner         *int
+	clearedowner  bool
+	done          bool
+	oldValue      func(context.Context) (*Coin, error)
+	predicates    []predicate.Coin
+}
+
+var _ ent.Mutation = (*CoinMutation)(nil)
+
+// coinOption allows management of the mutation configuration using functional options.
+type coinOption func(*CoinMutation)
+
+// newCoinMutation creates new mutation for the Coin entity.
+func newCoinMutation(c config, op Op, opts ...coinOption) *CoinMutation {
+	m := &CoinMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCoin,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCoinID sets the ID field of the mutation.
+func withCoinID(id int) coinOption {
+	return func(m *CoinMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Coin
+		)
+		m.oldValue = func(ctx context.Context) (*Coin, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Coin.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCoin sets the old Coin of the mutation.
+func withCoin(node *Coin) coinOption {
+	return func(m *CoinMutation) {
+		m.oldValue = func(context.Context) (*Coin, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CoinMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CoinMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CoinMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CoinMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Coin.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetDeal sets the "deal" field.
+func (m *CoinMutation) SetDeal(s string) {
+	m.deal = &s
+}
+
+// Deal returns the value of the "deal" field in the mutation.
+func (m *CoinMutation) Deal() (r string, exists bool) {
+	v := m.deal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeal returns the old "deal" field's value of the Coin entity.
+// If the Coin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CoinMutation) OldDeal(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeal: %w", err)
+	}
+	return oldValue.Deal, nil
+}
+
+// ResetDeal resets all changes to the "deal" field.
+func (m *CoinMutation) ResetDeal() {
+	m.deal = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *CoinMutation) SetAmount(i int64) {
+	m.amount = &i
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *CoinMutation) Amount() (r int64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the Coin entity.
+// If the Coin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CoinMutation) OldAmount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds i to the "amount" field.
+func (m *CoinMutation) AddAmount(i int64) {
+	if m.addamount != nil {
+		*m.addamount += i
+	} else {
+		m.addamount = &i
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *CoinMutation) AddedAmount() (r int64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *CoinMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetBalance sets the "balance" field.
+func (m *CoinMutation) SetBalance(i int64) {
+	m.balance = &i
+	m.addbalance = nil
+}
+
+// Balance returns the value of the "balance" field in the mutation.
+func (m *CoinMutation) Balance() (r int64, exists bool) {
+	v := m.balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalance returns the old "balance" field's value of the Coin entity.
+// If the Coin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CoinMutation) OldBalance(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalance: %w", err)
+	}
+	return oldValue.Balance, nil
+}
+
+// AddBalance adds i to the "balance" field.
+func (m *CoinMutation) AddBalance(i int64) {
+	if m.addbalance != nil {
+		*m.addbalance += i
+	} else {
+		m.addbalance = &i
+	}
+}
+
+// AddedBalance returns the value that was added to the "balance" field in this mutation.
+func (m *CoinMutation) AddedBalance() (r int64, exists bool) {
+	v := m.addbalance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBalance resets all changes to the "balance" field.
+func (m *CoinMutation) ResetBalance() {
+	m.balance = nil
+	m.addbalance = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CoinMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CoinMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Coin entity.
+// If the Coin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CoinMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CoinMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CoinMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CoinMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Coin entity.
+// If the Coin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CoinMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CoinMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetOwnerID sets the "owner" edge to the User entity by id.
+func (m *CoinMutation) SetOwnerID(id int) {
+	m.owner = &id
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (m *CoinMutation) ClearOwner() {
+	m.clearedowner = true
+}
+
+// OwnerCleared reports if the "owner" edge to the User entity was cleared.
+func (m *CoinMutation) OwnerCleared() bool {
+	return m.clearedowner
+}
+
+// OwnerID returns the "owner" edge ID in the mutation.
+func (m *CoinMutation) OwnerID() (id int, exists bool) {
+	if m.owner != nil {
+		return *m.owner, true
+	}
+	return
+}
+
+// OwnerIDs returns the "owner" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// OwnerID instead. It exists only for internal usage by the builders.
+func (m *CoinMutation) OwnerIDs() (ids []int) {
+	if id := m.owner; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetOwner resets all changes to the "owner" edge.
+func (m *CoinMutation) ResetOwner() {
+	m.owner = nil
+	m.clearedowner = false
+}
+
+// Where appends a list predicates to the CoinMutation builder.
+func (m *CoinMutation) Where(ps ...predicate.Coin) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// Op returns the operation name.
+func (m *CoinMutation) Op() Op {
+	return m.op
+}
+
+// Type returns the node type of this mutation (Coin).
+func (m *CoinMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CoinMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.deal != nil {
+		fields = append(fields, coin.FieldDeal)
+	}
+	if m.amount != nil {
+		fields = append(fields, coin.FieldAmount)
+	}
+	if m.balance != nil {
+		fields = append(fields, coin.FieldBalance)
+	}
+	if m.created_at != nil {
+		fields = append(fields, coin.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, coin.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CoinMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case coin.FieldDeal:
+		return m.Deal()
+	case coin.FieldAmount:
+		return m.Amount()
+	case coin.FieldBalance:
+		return m.Balance()
+	case coin.FieldCreatedAt:
+		return m.CreatedAt()
+	case coin.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CoinMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case coin.FieldDeal:
+		return m.OldDeal(ctx)
+	case coin.FieldAmount:
+		return m.OldAmount(ctx)
+	case coin.FieldBalance:
+		return m.OldBalance(ctx)
+	case coin.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case coin.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Coin field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CoinMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case coin.FieldDeal:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeal(v)
+		return nil
+	case coin.FieldAmount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case coin.FieldBalance:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalance(v)
+		return nil
+	case coin.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case coin.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Coin field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CoinMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, coin.FieldAmount)
+	}
+	if m.addbalance != nil {
+		fields = append(fields, coin.FieldBalance)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CoinMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case coin.FieldAmount:
+		return m.AddedAmount()
+	case coin.FieldBalance:
+		return m.AddedBalance()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CoinMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case coin.FieldAmount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case coin.FieldBalance:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalance(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Coin numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CoinMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CoinMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CoinMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Coin nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CoinMutation) ResetField(name string) error {
+	switch name {
+	case coin.FieldDeal:
+		m.ResetDeal()
+		return nil
+	case coin.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case coin.FieldBalance:
+		m.ResetBalance()
+		return nil
+	case coin.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case coin.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Coin field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CoinMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.owner != nil {
+		edges = append(edges, coin.EdgeOwner)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CoinMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case coin.EdgeOwner:
+		if id := m.owner; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CoinMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CoinMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CoinMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedowner {
+		edges = append(edges, coin.EdgeOwner)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CoinMutation) EdgeCleared(name string) bool {
+	switch name {
+	case coin.EdgeOwner:
+		return m.clearedowner
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CoinMutation) ClearEdge(name string) error {
+	switch name {
+	case coin.EdgeOwner:
+		m.ClearOwner()
+		return nil
+	}
+	return fmt.Errorf("unknown Coin unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CoinMutation) ResetEdge(name string) error {
+	switch name {
+	case coin.EdgeOwner:
+		m.ResetOwner()
+		return nil
+	}
+	return fmt.Errorf("unknown Coin edge %s", name)
+}
 
 // CommentMutation represents an operation that mutates the Comment nodes in the graph.
 type CommentMutation struct {
@@ -642,23 +1309,20 @@ func (m *CommentMutation) ResetEdge(name string) error {
 // GroupMutation represents an operation that mutates the Group nodes in the graph.
 type GroupMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	name           *string
-	intro          *string
-	created_at     *time.Time
-	updated_at     *time.Time
-	clearedFields  map[string]struct{}
-	members        map[int]struct{}
-	removedmembers map[int]struct{}
-	clearedmembers bool
-	posts          map[int]struct{}
-	removedposts   map[int]struct{}
-	clearedposts   bool
-	done           bool
-	oldValue       func(context.Context) (*Group, error)
-	predicates     []predicate.Group
+	op            Op
+	typ           string
+	id            *int
+	name          *string
+	intro         *string
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	posts         map[int]struct{}
+	removedposts  map[int]struct{}
+	clearedposts  bool
+	done          bool
+	oldValue      func(context.Context) (*Group, error)
+	predicates    []predicate.Group
 }
 
 var _ ent.Mutation = (*GroupMutation)(nil)
@@ -903,60 +1567,6 @@ func (m *GroupMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
-// AddMemberIDs adds the "members" edge to the User entity by ids.
-func (m *GroupMutation) AddMemberIDs(ids ...int) {
-	if m.members == nil {
-		m.members = make(map[int]struct{})
-	}
-	for i := range ids {
-		m.members[ids[i]] = struct{}{}
-	}
-}
-
-// ClearMembers clears the "members" edge to the User entity.
-func (m *GroupMutation) ClearMembers() {
-	m.clearedmembers = true
-}
-
-// MembersCleared reports if the "members" edge to the User entity was cleared.
-func (m *GroupMutation) MembersCleared() bool {
-	return m.clearedmembers
-}
-
-// RemoveMemberIDs removes the "members" edge to the User entity by IDs.
-func (m *GroupMutation) RemoveMemberIDs(ids ...int) {
-	if m.removedmembers == nil {
-		m.removedmembers = make(map[int]struct{})
-	}
-	for i := range ids {
-		delete(m.members, ids[i])
-		m.removedmembers[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedMembers returns the removed IDs of the "members" edge to the User entity.
-func (m *GroupMutation) RemovedMembersIDs() (ids []int) {
-	for id := range m.removedmembers {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// MembersIDs returns the "members" edge IDs in the mutation.
-func (m *GroupMutation) MembersIDs() (ids []int) {
-	for id := range m.members {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetMembers resets all changes to the "members" edge.
-func (m *GroupMutation) ResetMembers() {
-	m.members = nil
-	m.clearedmembers = false
-	m.removedmembers = nil
-}
-
 // AddPostIDs adds the "posts" edge to the Post entity by ids.
 func (m *GroupMutation) AddPostIDs(ids ...int) {
 	if m.posts == nil {
@@ -1180,10 +1790,7 @@ func (m *GroupMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *GroupMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
-	if m.members != nil {
-		edges = append(edges, group.EdgeMembers)
-	}
+	edges := make([]string, 0, 1)
 	if m.posts != nil {
 		edges = append(edges, group.EdgePosts)
 	}
@@ -1194,12 +1801,6 @@ func (m *GroupMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *GroupMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case group.EdgeMembers:
-		ids := make([]ent.Value, 0, len(m.members))
-		for id := range m.members {
-			ids = append(ids, id)
-		}
-		return ids
 	case group.EdgePosts:
 		ids := make([]ent.Value, 0, len(m.posts))
 		for id := range m.posts {
@@ -1212,10 +1813,7 @@ func (m *GroupMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *GroupMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
-	if m.removedmembers != nil {
-		edges = append(edges, group.EdgeMembers)
-	}
+	edges := make([]string, 0, 1)
 	if m.removedposts != nil {
 		edges = append(edges, group.EdgePosts)
 	}
@@ -1226,12 +1824,6 @@ func (m *GroupMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *GroupMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
-	case group.EdgeMembers:
-		ids := make([]ent.Value, 0, len(m.removedmembers))
-		for id := range m.removedmembers {
-			ids = append(ids, id)
-		}
-		return ids
 	case group.EdgePosts:
 		ids := make([]ent.Value, 0, len(m.removedposts))
 		for id := range m.removedposts {
@@ -1244,10 +1836,7 @@ func (m *GroupMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *GroupMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
-	if m.clearedmembers {
-		edges = append(edges, group.EdgeMembers)
-	}
+	edges := make([]string, 0, 1)
 	if m.clearedposts {
 		edges = append(edges, group.EdgePosts)
 	}
@@ -1258,8 +1847,6 @@ func (m *GroupMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *GroupMutation) EdgeCleared(name string) bool {
 	switch name {
-	case group.EdgeMembers:
-		return m.clearedmembers
 	case group.EdgePosts:
 		return m.clearedposts
 	}
@@ -1278,9 +1865,6 @@ func (m *GroupMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *GroupMutation) ResetEdge(name string) error {
 	switch name {
-	case group.EdgeMembers:
-		m.ResetMembers()
-		return nil
 	case group.EdgePosts:
 		m.ResetPosts()
 		return nil
@@ -2013,18 +2597,20 @@ type UserMutation struct {
 	salt                  *string
 	avatar_url            *string
 	intro                 *string
+	coin                  *int64
+	addcoin               *int64
 	created_at            *time.Time
 	updated_at            *time.Time
 	clearedFields         map[string]struct{}
 	posts                 map[int]struct{}
 	removedposts          map[int]struct{}
 	clearedposts          bool
-	groups                map[int]struct{}
-	removedgroups         map[int]struct{}
-	clearedgroups         bool
 	favorite_posts        map[int]struct{}
 	removedfavorite_posts map[int]struct{}
 	clearedfavorite_posts bool
+	coins                 map[int]struct{}
+	removedcoins          map[int]struct{}
+	clearedcoins          bool
 	done                  bool
 	oldValue              func(context.Context) (*User, error)
 	predicates            []predicate.User
@@ -2383,6 +2969,62 @@ func (m *UserMutation) ResetIntro() {
 	delete(m.clearedFields, user.FieldIntro)
 }
 
+// SetCoin sets the "coin" field.
+func (m *UserMutation) SetCoin(i int64) {
+	m.coin = &i
+	m.addcoin = nil
+}
+
+// Coin returns the value of the "coin" field in the mutation.
+func (m *UserMutation) Coin() (r int64, exists bool) {
+	v := m.coin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoin returns the old "coin" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldCoin(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoin: %w", err)
+	}
+	return oldValue.Coin, nil
+}
+
+// AddCoin adds i to the "coin" field.
+func (m *UserMutation) AddCoin(i int64) {
+	if m.addcoin != nil {
+		*m.addcoin += i
+	} else {
+		m.addcoin = &i
+	}
+}
+
+// AddedCoin returns the value that was added to the "coin" field in this mutation.
+func (m *UserMutation) AddedCoin() (r int64, exists bool) {
+	v := m.addcoin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCoin resets all changes to the "coin" field.
+func (m *UserMutation) ResetCoin() {
+	m.coin = nil
+	m.addcoin = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UserMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2509,60 +3151,6 @@ func (m *UserMutation) ResetPosts() {
 	m.removedposts = nil
 }
 
-// AddGroupIDs adds the "groups" edge to the Group entity by ids.
-func (m *UserMutation) AddGroupIDs(ids ...int) {
-	if m.groups == nil {
-		m.groups = make(map[int]struct{})
-	}
-	for i := range ids {
-		m.groups[ids[i]] = struct{}{}
-	}
-}
-
-// ClearGroups clears the "groups" edge to the Group entity.
-func (m *UserMutation) ClearGroups() {
-	m.clearedgroups = true
-}
-
-// GroupsCleared reports if the "groups" edge to the Group entity was cleared.
-func (m *UserMutation) GroupsCleared() bool {
-	return m.clearedgroups
-}
-
-// RemoveGroupIDs removes the "groups" edge to the Group entity by IDs.
-func (m *UserMutation) RemoveGroupIDs(ids ...int) {
-	if m.removedgroups == nil {
-		m.removedgroups = make(map[int]struct{})
-	}
-	for i := range ids {
-		delete(m.groups, ids[i])
-		m.removedgroups[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedGroups returns the removed IDs of the "groups" edge to the Group entity.
-func (m *UserMutation) RemovedGroupsIDs() (ids []int) {
-	for id := range m.removedgroups {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// GroupsIDs returns the "groups" edge IDs in the mutation.
-func (m *UserMutation) GroupsIDs() (ids []int) {
-	for id := range m.groups {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetGroups resets all changes to the "groups" edge.
-func (m *UserMutation) ResetGroups() {
-	m.groups = nil
-	m.clearedgroups = false
-	m.removedgroups = nil
-}
-
 // AddFavoritePostIDs adds the "favorite_posts" edge to the Post entity by ids.
 func (m *UserMutation) AddFavoritePostIDs(ids ...int) {
 	if m.favorite_posts == nil {
@@ -2617,6 +3205,60 @@ func (m *UserMutation) ResetFavoritePosts() {
 	m.removedfavorite_posts = nil
 }
 
+// AddCoinIDs adds the "coins" edge to the Coin entity by ids.
+func (m *UserMutation) AddCoinIDs(ids ...int) {
+	if m.coins == nil {
+		m.coins = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.coins[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCoins clears the "coins" edge to the Coin entity.
+func (m *UserMutation) ClearCoins() {
+	m.clearedcoins = true
+}
+
+// CoinsCleared reports if the "coins" edge to the Coin entity was cleared.
+func (m *UserMutation) CoinsCleared() bool {
+	return m.clearedcoins
+}
+
+// RemoveCoinIDs removes the "coins" edge to the Coin entity by IDs.
+func (m *UserMutation) RemoveCoinIDs(ids ...int) {
+	if m.removedcoins == nil {
+		m.removedcoins = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.coins, ids[i])
+		m.removedcoins[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCoins returns the removed IDs of the "coins" edge to the Coin entity.
+func (m *UserMutation) RemovedCoinsIDs() (ids []int) {
+	for id := range m.removedcoins {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CoinsIDs returns the "coins" edge IDs in the mutation.
+func (m *UserMutation) CoinsIDs() (ids []int) {
+	for id := range m.coins {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCoins resets all changes to the "coins" edge.
+func (m *UserMutation) ResetCoins() {
+	m.coins = nil
+	m.clearedcoins = false
+	m.removedcoins = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -2636,7 +3278,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.name != nil {
 		fields = append(fields, user.FieldName)
 	}
@@ -2654,6 +3296,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.intro != nil {
 		fields = append(fields, user.FieldIntro)
+	}
+	if m.coin != nil {
+		fields = append(fields, user.FieldCoin)
 	}
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
@@ -2681,6 +3326,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.AvatarURL()
 	case user.FieldIntro:
 		return m.Intro()
+	case user.FieldCoin:
+		return m.Coin()
 	case user.FieldCreatedAt:
 		return m.CreatedAt()
 	case user.FieldUpdatedAt:
@@ -2706,6 +3353,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldAvatarURL(ctx)
 	case user.FieldIntro:
 		return m.OldIntro(ctx)
+	case user.FieldCoin:
+		return m.OldCoin(ctx)
 	case user.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case user.FieldUpdatedAt:
@@ -2761,6 +3410,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIntro(v)
 		return nil
+	case user.FieldCoin:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoin(v)
+		return nil
 	case user.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2782,13 +3438,21 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *UserMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addcoin != nil {
+		fields = append(fields, user.FieldCoin)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case user.FieldCoin:
+		return m.AddedCoin()
+	}
 	return nil, false
 }
 
@@ -2797,6 +3461,13 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UserMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case user.FieldCoin:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCoin(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User numeric field %s", name)
 }
@@ -2863,6 +3534,9 @@ func (m *UserMutation) ResetField(name string) error {
 	case user.FieldIntro:
 		m.ResetIntro()
 		return nil
+	case user.FieldCoin:
+		m.ResetCoin()
+		return nil
 	case user.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
@@ -2879,11 +3553,11 @@ func (m *UserMutation) AddedEdges() []string {
 	if m.posts != nil {
 		edges = append(edges, user.EdgePosts)
 	}
-	if m.groups != nil {
-		edges = append(edges, user.EdgeGroups)
-	}
 	if m.favorite_posts != nil {
 		edges = append(edges, user.EdgeFavoritePosts)
+	}
+	if m.coins != nil {
+		edges = append(edges, user.EdgeCoins)
 	}
 	return edges
 }
@@ -2898,15 +3572,15 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeGroups:
-		ids := make([]ent.Value, 0, len(m.groups))
-		for id := range m.groups {
-			ids = append(ids, id)
-		}
-		return ids
 	case user.EdgeFavoritePosts:
 		ids := make([]ent.Value, 0, len(m.favorite_posts))
 		for id := range m.favorite_posts {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeCoins:
+		ids := make([]ent.Value, 0, len(m.coins))
+		for id := range m.coins {
 			ids = append(ids, id)
 		}
 		return ids
@@ -2920,11 +3594,11 @@ func (m *UserMutation) RemovedEdges() []string {
 	if m.removedposts != nil {
 		edges = append(edges, user.EdgePosts)
 	}
-	if m.removedgroups != nil {
-		edges = append(edges, user.EdgeGroups)
-	}
 	if m.removedfavorite_posts != nil {
 		edges = append(edges, user.EdgeFavoritePosts)
+	}
+	if m.removedcoins != nil {
+		edges = append(edges, user.EdgeCoins)
 	}
 	return edges
 }
@@ -2939,15 +3613,15 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeGroups:
-		ids := make([]ent.Value, 0, len(m.removedgroups))
-		for id := range m.removedgroups {
-			ids = append(ids, id)
-		}
-		return ids
 	case user.EdgeFavoritePosts:
 		ids := make([]ent.Value, 0, len(m.removedfavorite_posts))
 		for id := range m.removedfavorite_posts {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeCoins:
+		ids := make([]ent.Value, 0, len(m.removedcoins))
+		for id := range m.removedcoins {
 			ids = append(ids, id)
 		}
 		return ids
@@ -2961,11 +3635,11 @@ func (m *UserMutation) ClearedEdges() []string {
 	if m.clearedposts {
 		edges = append(edges, user.EdgePosts)
 	}
-	if m.clearedgroups {
-		edges = append(edges, user.EdgeGroups)
-	}
 	if m.clearedfavorite_posts {
 		edges = append(edges, user.EdgeFavoritePosts)
+	}
+	if m.clearedcoins {
+		edges = append(edges, user.EdgeCoins)
 	}
 	return edges
 }
@@ -2976,10 +3650,10 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
 	case user.EdgePosts:
 		return m.clearedposts
-	case user.EdgeGroups:
-		return m.clearedgroups
 	case user.EdgeFavoritePosts:
 		return m.clearedfavorite_posts
+	case user.EdgeCoins:
+		return m.clearedcoins
 	}
 	return false
 }
@@ -2999,11 +3673,11 @@ func (m *UserMutation) ResetEdge(name string) error {
 	case user.EdgePosts:
 		m.ResetPosts()
 		return nil
-	case user.EdgeGroups:
-		m.ResetGroups()
-		return nil
 	case user.EdgeFavoritePosts:
 		m.ResetFavoritePosts()
+		return nil
+	case user.EdgeCoins:
+		m.ResetCoins()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

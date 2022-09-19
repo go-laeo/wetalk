@@ -9,6 +9,19 @@ import (
 	"github.com/go-laeo/wetalk/ent"
 )
 
+// The CoinFunc type is an adapter to allow the use of ordinary
+// function as Coin mutator.
+type CoinFunc func(context.Context, *ent.CoinMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CoinFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.CoinMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CoinMutation", m)
+	}
+	return f(ctx, mv)
+}
+
 // The CommentFunc type is an adapter to allow the use of ordinary
 // function as Comment mutator.
 type CommentFunc func(context.Context, *ent.CommentMutation) (ent.Value, error)

@@ -31,28 +31,17 @@ type Group struct {
 
 // GroupEdges holds the relations/edges for other nodes in the graph.
 type GroupEdges struct {
-	// Members holds the value of the members edge.
-	Members []*User `json:"members,omitempty"`
 	// Posts holds the value of the posts edge.
 	Posts []*Post `json:"posts,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
-}
-
-// MembersOrErr returns the Members value or an error if the edge
-// was not loaded in eager-loading.
-func (e GroupEdges) MembersOrErr() ([]*User, error) {
-	if e.loadedTypes[0] {
-		return e.Members, nil
-	}
-	return nil, &NotLoadedError{edge: "members"}
+	loadedTypes [1]bool
 }
 
 // PostsOrErr returns the Posts value or an error if the edge
 // was not loaded in eager-loading.
 func (e GroupEdges) PostsOrErr() ([]*Post, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[0] {
 		return e.Posts, nil
 	}
 	return nil, &NotLoadedError{edge: "posts"}
@@ -117,11 +106,6 @@ func (gr *Group) assignValues(columns []string, values []interface{}) error {
 		}
 	}
 	return nil
-}
-
-// QueryMembers queries the "members" edge of the Group entity.
-func (gr *Group) QueryMembers() *UserQuery {
-	return (&GroupClient{config: gr.config}).QueryMembers(gr)
 }
 
 // QueryPosts queries the "posts" edge of the Group entity.

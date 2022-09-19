@@ -123,6 +123,13 @@ func Intro(v string) predicate.User {
 	})
 }
 
+// Coin applies equality check predicate on the "coin" field. It's identical to CoinEQ.
+func Coin(v int64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldCoin), v))
+	})
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
@@ -773,6 +780,70 @@ func IntroContainsFold(v string) predicate.User {
 	})
 }
 
+// CoinEQ applies the EQ predicate on the "coin" field.
+func CoinEQ(v int64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldCoin), v))
+	})
+}
+
+// CoinNEQ applies the NEQ predicate on the "coin" field.
+func CoinNEQ(v int64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldCoin), v))
+	})
+}
+
+// CoinIn applies the In predicate on the "coin" field.
+func CoinIn(vs ...int64) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldCoin), v...))
+	})
+}
+
+// CoinNotIn applies the NotIn predicate on the "coin" field.
+func CoinNotIn(vs ...int64) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldCoin), v...))
+	})
+}
+
+// CoinGT applies the GT predicate on the "coin" field.
+func CoinGT(v int64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldCoin), v))
+	})
+}
+
+// CoinGTE applies the GTE predicate on the "coin" field.
+func CoinGTE(v int64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldCoin), v))
+	})
+}
+
+// CoinLT applies the LT predicate on the "coin" field.
+func CoinLT(v int64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldCoin), v))
+	})
+}
+
+// CoinLTE applies the LTE predicate on the "coin" field.
+func CoinLTE(v int64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldCoin), v))
+	})
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
@@ -929,34 +1000,6 @@ func HasPostsWith(preds ...predicate.Post) predicate.User {
 	})
 }
 
-// HasGroups applies the HasEdge predicate on the "groups" edge.
-func HasGroups() predicate.User {
-	return predicate.User(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(GroupsTable, FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, true, GroupsTable, GroupsPrimaryKey...),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasGroupsWith applies the HasEdge predicate on the "groups" edge with a given conditions (other predicates).
-func HasGroupsWith(preds ...predicate.Group) predicate.User {
-	return predicate.User(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(GroupsInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, true, GroupsTable, GroupsPrimaryKey...),
-		)
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
 // HasFavoritePosts applies the HasEdge predicate on the "favorite_posts" edge.
 func HasFavoritePosts() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
@@ -976,6 +1019,34 @@ func HasFavoritePostsWith(preds ...predicate.Post) predicate.User {
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(FavoritePostsInverseTable, FieldID),
 			sqlgraph.Edge(sqlgraph.M2M, false, FavoritePostsTable, FavoritePostsPrimaryKey...),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCoins applies the HasEdge predicate on the "coins" edge.
+func HasCoins() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(CoinsTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CoinsTable, CoinsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCoinsWith applies the HasEdge predicate on the "coins" edge with a given conditions (other predicates).
+func HasCoinsWith(preds ...predicate.Coin) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(CoinsInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CoinsTable, CoinsColumn),
 		)
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {

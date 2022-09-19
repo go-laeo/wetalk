@@ -15,6 +15,7 @@ const auth = createAuthStore()
                 </router-link>
                 <div class=" flex-1"></div>
                 <template v-if="auth.token">
+                    <router-link :to="{ name: 'ForceMarket' }">权柄</router-link>
                     <router-link :to="{ name: 'Write' }" class=" bg-blue-500 text-white px-4 py-2 rounded-2xl">
                         <div class=" flex items-center gap-1">
                             <PaperAirplaneIcon class=" w-4 h-4" />

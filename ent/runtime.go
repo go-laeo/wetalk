@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/go-laeo/wetalk/ent/coin"
 	"github.com/go-laeo/wetalk/ent/comment"
 	"github.com/go-laeo/wetalk/ent/group"
 	"github.com/go-laeo/wetalk/ent/post"
@@ -16,6 +17,18 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	coinFields := schema.Coin{}.Fields()
+	_ = coinFields
+	// coinDescCreatedAt is the schema descriptor for created_at field.
+	coinDescCreatedAt := coinFields[3].Descriptor()
+	// coin.DefaultCreatedAt holds the default value on creation for the created_at field.
+	coin.DefaultCreatedAt = coinDescCreatedAt.Default.(func() time.Time)
+	// coinDescUpdatedAt is the schema descriptor for updated_at field.
+	coinDescUpdatedAt := coinFields[4].Descriptor()
+	// coin.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	coin.DefaultUpdatedAt = coinDescUpdatedAt.Default.(func() time.Time)
+	// coin.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	coin.UpdateDefaultUpdatedAt = coinDescUpdatedAt.UpdateDefault.(func() time.Time)
 	commentFields := schema.Comment{}.Fields()
 	_ = commentFields
 	// commentDescCreatedAt is the schema descriptor for created_at field.
@@ -54,12 +67,16 @@ func init() {
 	post.UpdateDefaultUpdatedAt = postDescUpdatedAt.UpdateDefault.(func() time.Time)
 	userFields := schema.User{}.Fields()
 	_ = userFields
+	// userDescCoin is the schema descriptor for coin field.
+	userDescCoin := userFields[6].Descriptor()
+	// user.DefaultCoin holds the default value on creation for the coin field.
+	user.DefaultCoin = userDescCoin.Default.(int64)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[6].Descriptor()
+	userDescCreatedAt := userFields[7].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[7].Descriptor()
+	userDescUpdatedAt := userFields[8].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

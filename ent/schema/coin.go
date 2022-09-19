@@ -9,26 +9,25 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// Post holds the schema definition for the Post entity.
-type Post struct {
+// Coin holds the schema definition for the Coin entity.
+type Coin struct {
 	ent.Schema
 }
 
-// Fields of the Post.
-func (Post) Fields() []ent.Field {
+// Fields of the Coin.
+func (Coin) Fields() []ent.Field {
 	return []ent.Field{
-		field.Text("content"),
+		field.String("deal"),
+		field.Int64("amount"),
+		field.Int64("balance"),
 		field.Time("created_at").Default(time.Now).Annotations(entsql.Annotation{Default: "CURRENT_TIMESTAMP"}),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).Annotations(entsql.Annotation{Default: "CURRENT_TIMESTAMP"}),
 	}
 }
 
-// Edges of the Post.
-func (Post) Edges() []ent.Edge {
+// Edges of the Coin.
+func (Coin) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("author", User.Type).Ref("posts").Unique().Required(),
-		edge.From("group", Group.Type).Ref("posts").Unique(),
-		edge.From("favorite_users", User.Type).Ref("favorite_posts"),
-		edge.To("comments", Comment.Type),
+		edge.From("owner", User.Type).Ref("coins").Required().Unique(),
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/go-laeo/wetalk/ent/group"
+	"github.com/go-laeo/wetalk/ent/coin"
 	"github.com/go-laeo/wetalk/ent/post"
 	"github.com/go-laeo/wetalk/ent/predicate"
 	"github.com/go-laeo/wetalk/ent/user"
@@ -108,6 +108,27 @@ func (uu *UserUpdate) ClearIntro() *UserUpdate {
 	return uu
 }
 
+// SetCoin sets the "coin" field.
+func (uu *UserUpdate) SetCoin(i int64) *UserUpdate {
+	uu.mutation.ResetCoin()
+	uu.mutation.SetCoin(i)
+	return uu
+}
+
+// SetNillableCoin sets the "coin" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableCoin(i *int64) *UserUpdate {
+	if i != nil {
+		uu.SetCoin(*i)
+	}
+	return uu
+}
+
+// AddCoin adds i to the "coin" field.
+func (uu *UserUpdate) AddCoin(i int64) *UserUpdate {
+	uu.mutation.AddCoin(i)
+	return uu
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (uu *UserUpdate) SetCreatedAt(t time.Time) *UserUpdate {
 	uu.mutation.SetCreatedAt(t)
@@ -143,21 +164,6 @@ func (uu *UserUpdate) AddPosts(p ...*Post) *UserUpdate {
 	return uu.AddPostIDs(ids...)
 }
 
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (uu *UserUpdate) AddGroupIDs(ids ...int) *UserUpdate {
-	uu.mutation.AddGroupIDs(ids...)
-	return uu
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (uu *UserUpdate) AddGroups(g ...*Group) *UserUpdate {
-	ids := make([]int, len(g))
-	for i := range g {
-		ids[i] = g[i].ID
-	}
-	return uu.AddGroupIDs(ids...)
-}
-
 // AddFavoritePostIDs adds the "favorite_posts" edge to the Post entity by IDs.
 func (uu *UserUpdate) AddFavoritePostIDs(ids ...int) *UserUpdate {
 	uu.mutation.AddFavoritePostIDs(ids...)
@@ -171,6 +177,21 @@ func (uu *UserUpdate) AddFavoritePosts(p ...*Post) *UserUpdate {
 		ids[i] = p[i].ID
 	}
 	return uu.AddFavoritePostIDs(ids...)
+}
+
+// AddCoinIDs adds the "coins" edge to the Coin entity by IDs.
+func (uu *UserUpdate) AddCoinIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddCoinIDs(ids...)
+	return uu
+}
+
+// AddCoins adds the "coins" edges to the Coin entity.
+func (uu *UserUpdate) AddCoins(c ...*Coin) *UserUpdate {
+	ids := make([]int, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return uu.AddCoinIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -199,27 +220,6 @@ func (uu *UserUpdate) RemovePosts(p ...*Post) *UserUpdate {
 	return uu.RemovePostIDs(ids...)
 }
 
-// ClearGroups clears all "groups" edges to the Group entity.
-func (uu *UserUpdate) ClearGroups() *UserUpdate {
-	uu.mutation.ClearGroups()
-	return uu
-}
-
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (uu *UserUpdate) RemoveGroupIDs(ids ...int) *UserUpdate {
-	uu.mutation.RemoveGroupIDs(ids...)
-	return uu
-}
-
-// RemoveGroups removes "groups" edges to Group entities.
-func (uu *UserUpdate) RemoveGroups(g ...*Group) *UserUpdate {
-	ids := make([]int, len(g))
-	for i := range g {
-		ids[i] = g[i].ID
-	}
-	return uu.RemoveGroupIDs(ids...)
-}
-
 // ClearFavoritePosts clears all "favorite_posts" edges to the Post entity.
 func (uu *UserUpdate) ClearFavoritePosts() *UserUpdate {
 	uu.mutation.ClearFavoritePosts()
@@ -239,6 +239,27 @@ func (uu *UserUpdate) RemoveFavoritePosts(p ...*Post) *UserUpdate {
 		ids[i] = p[i].ID
 	}
 	return uu.RemoveFavoritePostIDs(ids...)
+}
+
+// ClearCoins clears all "coins" edges to the Coin entity.
+func (uu *UserUpdate) ClearCoins() *UserUpdate {
+	uu.mutation.ClearCoins()
+	return uu
+}
+
+// RemoveCoinIDs removes the "coins" edge to Coin entities by IDs.
+func (uu *UserUpdate) RemoveCoinIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveCoinIDs(ids...)
+	return uu
+}
+
+// RemoveCoins removes "coins" edges to Coin entities.
+func (uu *UserUpdate) RemoveCoins(c ...*Coin) *UserUpdate {
+	ids := make([]int, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return uu.RemoveCoinIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -382,6 +403,20 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldIntro,
 		})
 	}
+	if value, ok := uu.mutation.Coin(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: user.FieldCoin,
+		})
+	}
+	if value, ok := uu.mutation.AddedCoin(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: user.FieldCoin,
+		})
+	}
 	if value, ok := uu.mutation.CreatedAt(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
@@ -450,60 +485,6 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if uu.mutation.GroupsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: group.FieldID,
-				},
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := uu.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !uu.mutation.GroupsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: group.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := uu.mutation.GroupsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: group.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
 	if uu.mutation.FavoritePostsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
@@ -550,6 +531,60 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 				IDSpec: &sqlgraph.FieldSpec{
 					Type:   field.TypeInt,
 					Column: post.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.CoinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CoinsTable,
+			Columns: []string{user.CoinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: coin.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedCoinsIDs(); len(nodes) > 0 && !uu.mutation.CoinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CoinsTable,
+			Columns: []string{user.CoinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: coin.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.CoinsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CoinsTable,
+			Columns: []string{user.CoinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: coin.FieldID,
 				},
 			},
 		}
@@ -655,6 +690,27 @@ func (uuo *UserUpdateOne) ClearIntro() *UserUpdateOne {
 	return uuo
 }
 
+// SetCoin sets the "coin" field.
+func (uuo *UserUpdateOne) SetCoin(i int64) *UserUpdateOne {
+	uuo.mutation.ResetCoin()
+	uuo.mutation.SetCoin(i)
+	return uuo
+}
+
+// SetNillableCoin sets the "coin" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableCoin(i *int64) *UserUpdateOne {
+	if i != nil {
+		uuo.SetCoin(*i)
+	}
+	return uuo
+}
+
+// AddCoin adds i to the "coin" field.
+func (uuo *UserUpdateOne) AddCoin(i int64) *UserUpdateOne {
+	uuo.mutation.AddCoin(i)
+	return uuo
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (uuo *UserUpdateOne) SetCreatedAt(t time.Time) *UserUpdateOne {
 	uuo.mutation.SetCreatedAt(t)
@@ -690,21 +746,6 @@ func (uuo *UserUpdateOne) AddPosts(p ...*Post) *UserUpdateOne {
 	return uuo.AddPostIDs(ids...)
 }
 
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (uuo *UserUpdateOne) AddGroupIDs(ids ...int) *UserUpdateOne {
-	uuo.mutation.AddGroupIDs(ids...)
-	return uuo
-}
-
-// AddGroups adds the "groups" edges to the Group entity.
-func (uuo *UserUpdateOne) AddGroups(g ...*Group) *UserUpdateOne {
-	ids := make([]int, len(g))
-	for i := range g {
-		ids[i] = g[i].ID
-	}
-	return uuo.AddGroupIDs(ids...)
-}
-
 // AddFavoritePostIDs adds the "favorite_posts" edge to the Post entity by IDs.
 func (uuo *UserUpdateOne) AddFavoritePostIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.AddFavoritePostIDs(ids...)
@@ -718,6 +759,21 @@ func (uuo *UserUpdateOne) AddFavoritePosts(p ...*Post) *UserUpdateOne {
 		ids[i] = p[i].ID
 	}
 	return uuo.AddFavoritePostIDs(ids...)
+}
+
+// AddCoinIDs adds the "coins" edge to the Coin entity by IDs.
+func (uuo *UserUpdateOne) AddCoinIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddCoinIDs(ids...)
+	return uuo
+}
+
+// AddCoins adds the "coins" edges to the Coin entity.
+func (uuo *UserUpdateOne) AddCoins(c ...*Coin) *UserUpdateOne {
+	ids := make([]int, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return uuo.AddCoinIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -746,27 +802,6 @@ func (uuo *UserUpdateOne) RemovePosts(p ...*Post) *UserUpdateOne {
 	return uuo.RemovePostIDs(ids...)
 }
 
-// ClearGroups clears all "groups" edges to the Group entity.
-func (uuo *UserUpdateOne) ClearGroups() *UserUpdateOne {
-	uuo.mutation.ClearGroups()
-	return uuo
-}
-
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (uuo *UserUpdateOne) RemoveGroupIDs(ids ...int) *UserUpdateOne {
-	uuo.mutation.RemoveGroupIDs(ids...)
-	return uuo
-}
-
-// RemoveGroups removes "groups" edges to Group entities.
-func (uuo *UserUpdateOne) RemoveGroups(g ...*Group) *UserUpdateOne {
-	ids := make([]int, len(g))
-	for i := range g {
-		ids[i] = g[i].ID
-	}
-	return uuo.RemoveGroupIDs(ids...)
-}
-
 // ClearFavoritePosts clears all "favorite_posts" edges to the Post entity.
 func (uuo *UserUpdateOne) ClearFavoritePosts() *UserUpdateOne {
 	uuo.mutation.ClearFavoritePosts()
@@ -786,6 +821,27 @@ func (uuo *UserUpdateOne) RemoveFavoritePosts(p ...*Post) *UserUpdateOne {
 		ids[i] = p[i].ID
 	}
 	return uuo.RemoveFavoritePostIDs(ids...)
+}
+
+// ClearCoins clears all "coins" edges to the Coin entity.
+func (uuo *UserUpdateOne) ClearCoins() *UserUpdateOne {
+	uuo.mutation.ClearCoins()
+	return uuo
+}
+
+// RemoveCoinIDs removes the "coins" edge to Coin entities by IDs.
+func (uuo *UserUpdateOne) RemoveCoinIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveCoinIDs(ids...)
+	return uuo
+}
+
+// RemoveCoins removes "coins" edges to Coin entities.
+func (uuo *UserUpdateOne) RemoveCoins(c ...*Coin) *UserUpdateOne {
+	ids := make([]int, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return uuo.RemoveCoinIDs(ids...)
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -959,6 +1015,20 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Column: user.FieldIntro,
 		})
 	}
+	if value, ok := uuo.mutation.Coin(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: user.FieldCoin,
+		})
+	}
+	if value, ok := uuo.mutation.AddedCoin(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: user.FieldCoin,
+		})
+	}
 	if value, ok := uuo.mutation.CreatedAt(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
@@ -1027,60 +1097,6 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if uuo.mutation.GroupsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: group.FieldID,
-				},
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := uuo.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !uuo.mutation.GroupsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: group.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := uuo.mutation.GroupsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: group.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
 	if uuo.mutation.FavoritePostsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
@@ -1127,6 +1143,60 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 				IDSpec: &sqlgraph.FieldSpec{
 					Type:   field.TypeInt,
 					Column: post.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.CoinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CoinsTable,
+			Columns: []string{user.CoinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: coin.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedCoinsIDs(); len(nodes) > 0 && !uuo.mutation.CoinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CoinsTable,
+			Columns: []string{user.CoinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: coin.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.CoinsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CoinsTable,
+			Columns: []string{user.CoinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: coin.FieldID,
 				},
 			},
 		}

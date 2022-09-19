@@ -435,34 +435,6 @@ func UpdatedAtLTE(v time.Time) predicate.Group {
 	})
 }
 
-// HasMembers applies the HasEdge predicate on the "members" edge.
-func HasMembers() predicate.Group {
-	return predicate.Group(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(MembersTable, FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, MembersTable, MembersPrimaryKey...),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasMembersWith applies the HasEdge predicate on the "members" edge with a given conditions (other predicates).
-func HasMembersWith(preds ...predicate.User) predicate.Group {
-	return predicate.Group(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(MembersInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, MembersTable, MembersPrimaryKey...),
-		)
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
 // HasPosts applies the HasEdge predicate on the "posts" edge.
 func HasPosts() predicate.Group {
 	return predicate.Group(func(s *sql.Selector) {

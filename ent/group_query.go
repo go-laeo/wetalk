@@ -8,26 +8,26 @@ import (
 	"fmt"
 	"math"
 
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/go-laeo/wetalk/ent/group"
 	"github.com/go-laeo/wetalk/ent/post"
 	"github.com/go-laeo/wetalk/ent/predicate"
-	"github.com/go-laeo/wetalk/ent/user"
 )
 
 // GroupQuery is the builder for querying Group entities.
 type GroupQuery struct {
 	config
-	limit       *int
-	offset      *int
-	unique      *bool
-	order       []OrderFunc
-	fields      []string
-	predicates  []predicate.Group
-	withMembers *UserQuery
-	withPosts   *PostQuery
+	limit      *int
+	offset     *int
+	unique     *bool
+	order      []OrderFunc
+	fields     []string
+	predicates []predicate.Group
+	withPosts  *PostQuery
+	modifiers  []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -62,28 +62,6 @@ func (gq *GroupQuery) Unique(unique bool) *GroupQuery {
 func (gq *GroupQuery) Order(o ...OrderFunc) *GroupQuery {
 	gq.order = append(gq.order, o...)
 	return gq
-}
-
-// QueryMembers chains the current query on the "members" edge.
-func (gq *GroupQuery) QueryMembers() *UserQuery {
-	query := &UserQuery{config: gq.config}
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := gq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := gq.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(group.Table, group.FieldID, selector),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, group.MembersTable, group.MembersPrimaryKey...),
-		)
-		fromU = sqlgraph.SetNeighbors(gq.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
 }
 
 // QueryPosts chains the current query on the "posts" edge.
@@ -284,29 +262,17 @@ func (gq *GroupQuery) Clone() *GroupQuery {
 		return nil
 	}
 	return &GroupQuery{
-		config:      gq.config,
-		limit:       gq.limit,
-		offset:      gq.offset,
-		order:       append([]OrderFunc{}, gq.order...),
-		predicates:  append([]predicate.Group{}, gq.predicates...),
-		withMembers: gq.withMembers.Clone(),
-		withPosts:   gq.withPosts.Clone(),
+		config:     gq.config,
+		limit:      gq.limit,
+		offset:     gq.offset,
+		order:      append([]OrderFunc{}, gq.order...),
+		predicates: append([]predicate.Group{}, gq.predicates...),
+		withPosts:  gq.withPosts.Clone(),
 		// clone intermediate query.
 		sql:    gq.sql.Clone(),
 		path:   gq.path,
 		unique: gq.unique,
 	}
-}
-
-// WithMembers tells the query-builder to eager-load the nodes that are connected to
-// the "members" edge. The optional arguments are used to configure the query builder of the edge.
-func (gq *GroupQuery) WithMembers(opts ...func(*UserQuery)) *GroupQuery {
-	query := &UserQuery{config: gq.config}
-	for _, opt := range opts {
-		opt(query)
-	}
-	gq.withMembers = query
-	return gq
 }
 
 // WithPosts tells the query-builder to eager-load the nodes that are connected to
@@ -388,8 +354,7 @@ func (gq *GroupQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Group,
 	var (
 		nodes       = []*Group{}
 		_spec       = gq.querySpec()
-		loadedTypes = [2]bool{
-			gq.withMembers != nil,
+		loadedTypes = [1]bool{
 			gq.withPosts != nil,
 		}
 	)
@@ -402,6 +367,9 @@ func (gq *GroupQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Group,
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(gq.modifiers) > 0 {
+		_spec.Modifiers = gq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -410,13 +378,6 @@ func (gq *GroupQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Group,
 	}
 	if len(nodes) == 0 {
 		return nodes, nil
-	}
-	if query := gq.withMembers; query != nil {
-		if err := gq.loadMembers(ctx, query, nodes,
-			func(n *Group) { n.Edges.Members = []*User{} },
-			func(n *Group, e *User) { n.Edges.Members = append(n.Edges.Members, e) }); err != nil {
-			return nil, err
-		}
 	}
 	if query := gq.withPosts; query != nil {
 		if err := gq.loadPosts(ctx, query, nodes,
@@ -428,64 +389,6 @@ func (gq *GroupQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Group,
 	return nodes, nil
 }
 
-func (gq *GroupQuery) loadMembers(ctx context.Context, query *UserQuery, nodes []*Group, init func(*Group), assign func(*Group, *User)) error {
-	edgeIDs := make([]driver.Value, len(nodes))
-	byID := make(map[int]*Group)
-	nids := make(map[int]map[*Group]struct{})
-	for i, node := range nodes {
-		edgeIDs[i] = node.ID
-		byID[node.ID] = node
-		if init != nil {
-			init(node)
-		}
-	}
-	query.Where(func(s *sql.Selector) {
-		joinT := sql.Table(group.MembersTable)
-		s.Join(joinT).On(s.C(user.FieldID), joinT.C(group.MembersPrimaryKey[1]))
-		s.Where(sql.InValues(joinT.C(group.MembersPrimaryKey[0]), edgeIDs...))
-		columns := s.SelectedColumns()
-		s.Select(joinT.C(group.MembersPrimaryKey[0]))
-		s.AppendSelect(columns...)
-		s.SetDistinct(false)
-	})
-	if err := query.prepareQuery(ctx); err != nil {
-		return err
-	}
-	neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
-		assign := spec.Assign
-		values := spec.ScanValues
-		spec.ScanValues = func(columns []string) ([]interface{}, error) {
-			values, err := values(columns[1:])
-			if err != nil {
-				return nil, err
-			}
-			return append([]interface{}{new(sql.NullInt64)}, values...), nil
-		}
-		spec.Assign = func(columns []string, values []interface{}) error {
-			outValue := int(values[0].(*sql.NullInt64).Int64)
-			inValue := int(values[1].(*sql.NullInt64).Int64)
-			if nids[inValue] == nil {
-				nids[inValue] = map[*Group]struct{}{byID[outValue]: struct{}{}}
-				return assign(columns[1:], values[1:])
-			}
-			nids[inValue][byID[outValue]] = struct{}{}
-			return nil
-		}
-	})
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected "members" node returned %v`, n.ID)
-		}
-		for kn := range nodes {
-			assign(kn, n)
-		}
-	}
-	return nil
-}
 func (gq *GroupQuery) loadPosts(ctx context.Context, query *PostQuery, nodes []*Group, init func(*Group), assign func(*Group, *Post)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Group)
@@ -520,6 +423,9 @@ func (gq *GroupQuery) loadPosts(ctx context.Context, query *PostQuery, nodes []*
 
 func (gq *GroupQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := gq.querySpec()
+	if len(gq.modifiers) > 0 {
+		_spec.Modifiers = gq.modifiers
+	}
 	_spec.Node.Columns = gq.fields
 	if len(gq.fields) > 0 {
 		_spec.Unique = gq.unique != nil && *gq.unique
@@ -598,6 +504,9 @@ func (gq *GroupQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if gq.unique != nil && *gq.unique {
 		selector.Distinct()
 	}
+	for _, m := range gq.modifiers {
+		m(selector)
+	}
 	for _, p := range gq.predicates {
 		p(selector)
 	}
@@ -613,6 +522,32 @@ func (gq *GroupQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (gq *GroupQuery) ForUpdate(opts ...sql.LockOption) *GroupQuery {
+	if gq.driver.Dialect() == dialect.Postgres {
+		gq.Unique(false)
+	}
+	gq.modifiers = append(gq.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return gq
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (gq *GroupQuery) ForShare(opts ...sql.LockOption) *GroupQuery {
+	if gq.driver.Dialect() == dialect.Postgres {
+		gq.Unique(false)
+	}
+	gq.modifiers = append(gq.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return gq
 }
 
 // GroupGroupBy is the group-by builder for Group entities.

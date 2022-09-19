@@ -14,7 +14,6 @@ import (
 	"github.com/go-laeo/wetalk/ent/group"
 	"github.com/go-laeo/wetalk/ent/post"
 	"github.com/go-laeo/wetalk/ent/predicate"
-	"github.com/go-laeo/wetalk/ent/user"
 )
 
 // GroupUpdate is the builder for updating Group entities.
@@ -62,21 +61,6 @@ func (gu *GroupUpdate) SetUpdatedAt(t time.Time) *GroupUpdate {
 	return gu
 }
 
-// AddMemberIDs adds the "members" edge to the User entity by IDs.
-func (gu *GroupUpdate) AddMemberIDs(ids ...int) *GroupUpdate {
-	gu.mutation.AddMemberIDs(ids...)
-	return gu
-}
-
-// AddMembers adds the "members" edges to the User entity.
-func (gu *GroupUpdate) AddMembers(u ...*User) *GroupUpdate {
-	ids := make([]int, len(u))
-	for i := range u {
-		ids[i] = u[i].ID
-	}
-	return gu.AddMemberIDs(ids...)
-}
-
 // AddPostIDs adds the "posts" edge to the Post entity by IDs.
 func (gu *GroupUpdate) AddPostIDs(ids ...int) *GroupUpdate {
 	gu.mutation.AddPostIDs(ids...)
@@ -95,27 +79,6 @@ func (gu *GroupUpdate) AddPosts(p ...*Post) *GroupUpdate {
 // Mutation returns the GroupMutation object of the builder.
 func (gu *GroupUpdate) Mutation() *GroupMutation {
 	return gu.mutation
-}
-
-// ClearMembers clears all "members" edges to the User entity.
-func (gu *GroupUpdate) ClearMembers() *GroupUpdate {
-	gu.mutation.ClearMembers()
-	return gu
-}
-
-// RemoveMemberIDs removes the "members" edge to User entities by IDs.
-func (gu *GroupUpdate) RemoveMemberIDs(ids ...int) *GroupUpdate {
-	gu.mutation.RemoveMemberIDs(ids...)
-	return gu
-}
-
-// RemoveMembers removes "members" edges to User entities.
-func (gu *GroupUpdate) RemoveMembers(u ...*User) *GroupUpdate {
-	ids := make([]int, len(u))
-	for i := range u {
-		ids[i] = u[i].ID
-	}
-	return gu.RemoveMemberIDs(ids...)
 }
 
 // ClearPosts clears all "posts" edges to the Post entity.
@@ -248,60 +211,6 @@ func (gu *GroupUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: group.FieldUpdatedAt,
 		})
 	}
-	if gu.mutation.MembersCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: false,
-			Table:   group.MembersTable,
-			Columns: group.MembersPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := gu.mutation.RemovedMembersIDs(); len(nodes) > 0 && !gu.mutation.MembersCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: false,
-			Table:   group.MembersTable,
-			Columns: group.MembersPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := gu.mutation.MembersIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: false,
-			Table:   group.MembersTable,
-			Columns: group.MembersPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
 	if gu.mutation.PostsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -407,21 +316,6 @@ func (guo *GroupUpdateOne) SetUpdatedAt(t time.Time) *GroupUpdateOne {
 	return guo
 }
 
-// AddMemberIDs adds the "members" edge to the User entity by IDs.
-func (guo *GroupUpdateOne) AddMemberIDs(ids ...int) *GroupUpdateOne {
-	guo.mutation.AddMemberIDs(ids...)
-	return guo
-}
-
-// AddMembers adds the "members" edges to the User entity.
-func (guo *GroupUpdateOne) AddMembers(u ...*User) *GroupUpdateOne {
-	ids := make([]int, len(u))
-	for i := range u {
-		ids[i] = u[i].ID
-	}
-	return guo.AddMemberIDs(ids...)
-}
-
 // AddPostIDs adds the "posts" edge to the Post entity by IDs.
 func (guo *GroupUpdateOne) AddPostIDs(ids ...int) *GroupUpdateOne {
 	guo.mutation.AddPostIDs(ids...)
@@ -440,27 +334,6 @@ func (guo *GroupUpdateOne) AddPosts(p ...*Post) *GroupUpdateOne {
 // Mutation returns the GroupMutation object of the builder.
 func (guo *GroupUpdateOne) Mutation() *GroupMutation {
 	return guo.mutation
-}
-
-// ClearMembers clears all "members" edges to the User entity.
-func (guo *GroupUpdateOne) ClearMembers() *GroupUpdateOne {
-	guo.mutation.ClearMembers()
-	return guo
-}
-
-// RemoveMemberIDs removes the "members" edge to User entities by IDs.
-func (guo *GroupUpdateOne) RemoveMemberIDs(ids ...int) *GroupUpdateOne {
-	guo.mutation.RemoveMemberIDs(ids...)
-	return guo
-}
-
-// RemoveMembers removes "members" edges to User entities.
-func (guo *GroupUpdateOne) RemoveMembers(u ...*User) *GroupUpdateOne {
-	ids := make([]int, len(u))
-	for i := range u {
-		ids[i] = u[i].ID
-	}
-	return guo.RemoveMemberIDs(ids...)
 }
 
 // ClearPosts clears all "posts" edges to the Post entity.
@@ -622,60 +495,6 @@ func (guo *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error
 			Value:  value,
 			Column: group.FieldUpdatedAt,
 		})
-	}
-	if guo.mutation.MembersCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: false,
-			Table:   group.MembersTable,
-			Columns: group.MembersPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := guo.mutation.RemovedMembersIDs(); len(nodes) > 0 && !guo.mutation.MembersCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: false,
-			Table:   group.MembersTable,
-			Columns: group.MembersPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := guo.mutation.MembersIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: false,
-			Table:   group.MembersTable,
-			Columns: group.MembersPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if guo.mutation.PostsCleared() {
 		edge := &sqlgraph.EdgeSpec{

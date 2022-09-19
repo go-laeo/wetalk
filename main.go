@@ -15,6 +15,7 @@ import (
 	"github.com/go-laeo/wetalk/internal/auth"
 	"github.com/go-laeo/wetalk/internal/author"
 	"github.com/go-laeo/wetalk/internal/config"
+	"github.com/go-laeo/wetalk/internal/force"
 	"github.com/go-laeo/wetalk/internal/reader"
 	"github.com/go-laeo/wetalk/internal/search"
 	_ "github.com/go-sql-driver/mysql"
@@ -58,6 +59,7 @@ func main() {
 		sm.Route("/posts").Post(author.HTTPPublish())
 		sm.Route("/posts/:id/comments").Post(reader.HTTPCreateComment())
 		sm.Route("/posts/:id/favorite_users").Post(reader.HTTPCreateFavorite())
+		sm.Route("/groups").Post(force.HTTPCreateGroup())
 	})
 
 	sm.Route("/api/v1/groups").Get(author.HTTPListGroup())
